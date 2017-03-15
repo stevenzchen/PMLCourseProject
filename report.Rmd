@@ -1,0 +1,87 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Steven Chen"
+date: "3/15/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+Fitness sensors have been rising in popularity over the past several years, as more people track their exercise and fitness goals. In this project, our task is to predict the type of barbell lift performed by participants using accelerometer data from various sensors placed on their body. We demonstrate loading and cleaning data, trying different models, and finally evaluating our model on test data.
+
+## Getting and Cleaning Data
+
+First, we download and load in the data, and have a look:
+
+```{r load}
+library(ggplot2)
+library(caret)
+library(plyr)
+
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", "pml-training.csv")
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", "pml-testing.csv")
+
+trainSet <- read.csv("pml-training.csv")
+testSet <- read.csv("pml-testing.csv")
+
+dim(trainSet)
+dim(testSet)
+```
+
+We observe that the training set has 19,622 observations, and the test set has 20 observations.
+
+Next, we look for columns that have NA values and remove them from consideration for training the model:
+
+```{r clean}
+trainColumns <- sapply(trainSet, function(x) { !any(is.na(x)) })
+testColumns <- sapply(testSet, function(x) { !any(is.na(x)) })
+filledColumns <- trainColumns & testColumns
+sum(filledColumns)
+
+trainSet <- trainSet[, filledColumns]
+testSet <- testSet[, filledColumns]
+```
+
+We are left with 60 variables, including the classe variable we wish to predict in the trainSet and the problem_id variable in the testSet.
+
+## Model Experimentation
+
+Now, we train different models using cross-validation with the training set, comparing them. We consider models we've learned in class, so we start with these models and 5-fold cross-validation:
+
+```{r experiment, eval = FALSE}
+trainControl <- trainControl(method = "cv", number = 5, savePredictions = TRUE)
+
+randomForest <- train(classe ~ ., data = trainSet, method = "rf", trControl = trainControl)
+```
+
+This model was very slow to train, so we load it from our disk and show its properties:
+
+```{r printout}
+load("randomForest.RData")
+randomForest
+```
+
+The best model has an accuracy of 0.9999 on five-fold cross-validation, and that model is the one that is chosen.
+
+Our expected out-of-sample error is one minus our accuracy, estimated to be 0.0001, since our cross-validation method generated the accuracy measure through five-fold cross-validation using the same algorithm tuning parameters.
+
+We decide to stick with this model due to its high accuracy. Other models, such as a single decision tree, were attempted but had low accuracy (not shown for brevity.)
+
+## Model Evaluation
+
+Finally, we evaluate the model on the test cases, testSet:
+
+```{r test, eval = FALSE}
+predict(randomForest, testSet)
+```
+
+`
+[1] B A B A A E D D A A B C B A E E A B B B
+Levels: A B C D E
+`
+
+These predictions are the result of our random forest classifier, and will be fed into the final course quiz.
